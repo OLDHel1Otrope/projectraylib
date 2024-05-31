@@ -2,6 +2,8 @@ physics system
 driving mechanics, collision, acceleration, friction, position, timing, mouse based handling, controller support
 shaders
 complete hud, link it to chnging inputs etc
-dynamic skybox
 sound system
+dynamic skybox
 tracks,vheicle loading unloading system
+ideal line, aitraffic
+internet conn through steam
