@@ -1,7 +1,7 @@
 physics system
-driving mechanics, collision, acceleration, friction, position, timing
+driving mechanics, collision, acceleration, friction, position, timing, mouse based handling, controller support
 shaders
-complete hud
+complete hud, link it to chnging inputs etc
 dynamic skybox
 sound system
 tracks,vheicle loading unloading system
