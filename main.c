@@ -1,6 +1,11 @@
 #include "raylib.h"
 #include "math.h"
-
+typedef struct Telemetry {
+    int throttle;
+    int breaking;
+    int locking;
+    int rpm;
+}
 
 typedef struct Car {
     Vector3 position;
@@ -14,6 +19,11 @@ typedef struct Car {
     float downforce;
     int drs;
     Model model;
+    int t1;
+    int t2;
+    int t3;
+    int t4;
+    int fuel;
 } Car;
 
 int main(void)
