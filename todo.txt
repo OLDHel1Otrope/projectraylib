@@ -2,7 +2,7 @@ physics system
 learn about different types of collisions, differnt ways to apply shaders, calculating shadows
 driving mechanics, collision, acceleration, friction, position, timing, mouse based handling, controller support
 shaders
-complete hud, link it to chnging inputs etc
+complete hud and dashboard, link it to chnging inputs etc
 sound system
 dynamic skybox
 tracks,vheicle loading unloading system
