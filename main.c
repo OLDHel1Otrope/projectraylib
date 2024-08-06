@@ -1,7 +1,5 @@
 #include "raylib.h"
-
 #include <stdio.h> // For snprintf
-
 #include "raymath.h"
 
 typedef struct Car {
@@ -25,6 +23,11 @@ Vector3 Vector3Addc(Vector3 v1, Vector3 v2)
     return (Vector3){ v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
 }
 
+Vector3 PlaceRelative(Vector3 originalPosition, Vector3 offset)
+{
+    return Vector3Add(originalPosition, offset);
+}
+
 float SinDeg(float degrees)
 {
     return sinf(degrees * PI / 180.0f);
@@ -46,6 +49,7 @@ int main(void)
 {
     Color customGray = { 90, 90, 90, 255 };
     Color customGreen = { 0, 255, 0, 255 };
+    Color customBlack = { 0, 40, 40, 40 };
 
     const int screenWidth = 1920, screenHeight = 1200;
     SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -53,17 +57,13 @@ int main(void)
     ToggleFullscreen();
 
     Camera3D camera = {
-        .position = {0.0f, 10.0f, -10.0f}, // Camera behind the car
-        .target = {0.0f, 0.0f, 0.0f},
+        .position = {0.0f, 1.5f, 0.0f}, // Camera inside the car
+        .target = {0.0f, 1.5f, 1.0f},   // Looking forward
         .up = {0.0f, 1.0f, 0.0f},
         .fovy = 75.0f,
     };
     
     SetTargetFPS(144);
-
-    
-
-
 
     const char msg[256] = "BILLYSHOOLIGANS";
     Font fontOtf = LoadFontEx("resources/goodtimesrg.otf", 50, 0, 250);
@@ -104,12 +104,18 @@ int main(void)
 
         float deltaTime = GetFrameTime();
         
-        Vector3 cameraOffset = {0.0f, 2.0f, -10.0f}; // Offset of the camera from the car
-        camera.position = Vector3Addc(car.position, cameraOffset);
-        camera.target = car.position;
-        UpdateCamera(&camera, CAMERA_CUSTOM);
-        
+        // Update the car's position and rotation
         UpdateCarPhysics(&car, deltaTime);
+
+        // Update the camera's position to match the car's position
+        Vector3 cameraOffset = {1.0f, 0.5f, 1.0f}; // Slightly above the car
+        Vector3 carForward = Vector3Scale(Vector3RotateByAxisAngle((Vector3){0.0f, 0.0f, 1.0f}, (Vector3){0.0f, 1.0f, 0.0f}, car.rotation * DEG2RAD), 1.0f);
+        
+        camera.position = Vector3Addc(car.position, cameraOffset);
+        // camera.target = Vector3Addc(camera.position, (Vector3){carForward.x, 0.0f, carForward.z});
+        camera.target = Vector3Addc(car.position,(Vector3){1.f, 0.5f, 1.4f});
+        
+        // UpdateCamera(&camera, CAMERA_CUSTOM); // No need to call this if we are not using custom camera update
 
         char fpsText[10];
         snprintf(fpsText, sizeof(fpsText), "%d", GetFPS());
@@ -119,9 +125,13 @@ int main(void)
 
         BeginMode3D(camera);
         // Draw the car as a red cube
-        DrawCube(car.position, 1.0f, 0.5f, 2.0f, RED);
-        DrawModel(car.model, car.position, 0.3f, GREEN);
-        DrawCubeWires(car.position, 1.0f, 0.5f, 2.0f, DARKGRAY);
+        // DrawCube(car.position, 1.0f, 0.5f, 2.0f, BLACK);
+        // DrawCube(car.position, 1.0f, 0.5f, 2.0f, WHITE);
+        DrawModel(car.model, car.position, 0.3f, customBlack);
+        DrawModelWires(car.model, car.position, 0.3f, RED);
+        // DrawCubeWires(car.position, 1.0f, 0.5f, 2.0f, DARKGRAY);
+        //steering wheel logic
+        DrawCube(PlaceRelative(car.position,(Vector3){1.f, 0.35f, 1.4f}), 0.4f, 0.15f, 0.04f, RED);
 
         Vector3 planePosition = {0.0f, -1.3f, 0.0f};
         Vector3 planeScale = {10.0f, 1.0f, 10.0f}; // Scale the plane to the desired size
@@ -133,8 +143,6 @@ int main(void)
         DrawRectangle(200,800,600,230,customGray);
         DrawRectangle((k/1920.0f)*600+200,(l/1080.0f)*230+800,7,7,customGreen);
 
-        // DrawFPS(200, 820);
-        // char ch[]=GetFPS();
         DrawTextEx(fontTtf,fpsText, (Vector2){ 200.0f, 830.0f }, (float)fontTtf.baseSize-10, 2, BLACK);
 
         DrawTextEx(fontTtf,TextFormat("Speed: %.2f", car.speed), (Vector2){ 200.0f, 850.0f }, (float)fontTtf.baseSize-8, 2, BLACK);
@@ -142,10 +150,7 @@ int main(void)
         DrawTextEx(fontTtf,TextFormat("Acceleration: [%.2f, %.2f, %.2f]", car.acceleration.x, car.acceleration.y, car.acceleration.z), (Vector2){ 200.0f, 890.0f }, (float)fontTtf.baseSize-8, 2, BLACK);
         
         DrawTextEx(fontOtf, msg, (Vector2){ 200.0f, 800.0f }, (float)fontOtf.baseSize-10, 2, customGreen);
-        DrawTextEx(fontOtf, "6", (Vector2){ 700.0f, 830.0f }, (float)fontOtf.baseSize, 2, customGreen);
-
-        
-        // DrawRectangle(k,800,5,5,RED);
+        DrawTextEx(fontOtf, "5", (Vector2){ 700.0f, 830.0f }, (float)fontOtf.baseSize, 2, customGreen);
 
         EndDrawing();
     }
@@ -157,45 +162,30 @@ int main(void)
 
 void UpdateCarPhysics(Car *car, float deltaTime)
 {
+    // Initialize acceleration to zero
+    Vector3 acceleration = {0.0f, 0.0f, 0.0f};
+    //yahan pe friction bhi account karna padega aur when the throttle is let go to car needs to slowly come to a halt
+
     // Update acceleration based on input
-    if (IsKeyDown(KEY_W)) car->acceleration.z = car->accelerationRate;
-    else if (IsKeyDown(KEY_S)) car->acceleration.z = -car->brakingRate;
-    else car->acceleration.z = 0;
-
-    // Update steering based on input
-    if (IsKeyDown(KEY_A)) car->rotation -= car->turnSpeed * deltaTime;
-    if (IsKeyDown(KEY_D)) car->rotation += car->turnSpeed * deltaTime;
-
-    // Clamp steering angle to +/- 15 degrees
-    if (car->rotation > 15.0f) car->rotation = 15.0f;
-    if (car->rotation < -15.0f) car->rotation = -15.0f;
+    if (IsKeyDown(KEY_W)) acceleration.z = car->accelerationRate * deltaTime; // Move forward
+    if (IsKeyDown(KEY_S)) acceleration.z = -car->accelerationRate * deltaTime; // Move backward
+    if (IsKeyDown(KEY_A)) car->rotation -= car->turnSpeed * deltaTime; // Turn left
+    if (IsKeyDown(KEY_D)) car->rotation += car->turnSpeed * deltaTime; // Turn right
 
     // Calculate the new direction vector based on rotation
-    car->steering.x = SinDeg(car->rotation);
-    car->steering.y = CosDeg(car->rotation);
+    car->direction.x = SinDeg(car->rotation);
+    car->direction.z = CosDeg(car->rotation);
 
-    // Normalize the steering vector
-    float length = Sqrt(car->steering.x * car->steering.x + car->steering.y * car->steering.y);
-    car->steering.x /= length;
-    car->steering.y /= length;
+    // Normalize the direction vector
+    float length = Sqrt(car->direction.x * car->direction.x + car->direction.z * car->direction.z);
+    car->direction.x /= length;
+    car->direction.z /= length;
 
-    // Update velocity and position based on acceleration and steering direction
-    car->velocity.x = car->steering.x * car->acceleration.z * deltaTime;
-    car->velocity.z = car->steering.y * car->acceleration.z * deltaTime;
+    // Update the car's velocity based on direction and acceleration
+    car->velocity.x = car->direction.x * acceleration.z;
+    car->velocity.z = car->direction.z * acceleration.z;
 
-    // Ensure the car speed is within max speed limits
-    car->speed = Sqrt(car->velocity.x * car->velocity.x + car->velocity.z * car->velocity.z);
-    if (car->speed > car->maxSpeed)
-    {
-        car->velocity.x *= car->maxSpeed / car->speed;
-        car->velocity.z *= car->maxSpeed / car->speed;
-        car->speed = car->maxSpeed;
-    }
-
-    // Update the car's position
-    car->position.x += car->velocity.x * deltaTime;
-    car->position.z += car->velocity.z * deltaTime;
-
-    // Apply downforce (simplified)
-    car->velocity.y -= car->downforce * deltaTime;
+    // Update the car's position based on velocity
+    car->position.x += car->velocity.x;
+    car->position.z += car->velocity.z;
 }
